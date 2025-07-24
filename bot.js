@@ -1,7 +1,6 @@
 const { Telegraf } = require('telegraf');
 
-const bot = new Telegraf('8017281955:AAHUWgqvjsb_sT7tGTZgcSL9Mte8Wt_GhDk');
-const ADMIN_ID = 1006525845;
+const bot = new Telegraf('7985791190:AAG82Z_e_Kxxs4SorccNK_V0dzyOGlTt1CU');
 
 const userStates = {};
 
@@ -110,8 +109,9 @@ bot.on('voice', async (ctx) => {
     `🌍 Город, страна: ${state.cityCountry || '—'}\n` +
     `🆔 Telegram: @${ctx.from.username || 'нет'}\n`;
 
-  await ctx.telegram.sendVoice(ADMIN_ID, state.voiceFileId, {
-    caption
+  await ctx.telegram.sendVoice(-1002511638935, state.voiceFileId, {
+    caption,
+    message_thread_id: 110
   });
 
   ctx.reply(
