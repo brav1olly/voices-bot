@@ -46,21 +46,36 @@ bot.start(async (ctx) => {
 
 // Handler for the "Хочу узнать больше" flow
 bot.action('I_WANT_TO_LEARN', async (ctx) => {
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch (e) {
+    // Игнорируем ошибки answerCbQuery (query too old)
+  }
   await ctx.reply(`Voices — это документальный веб-зин.\nМы собираем анонимные голосовые сообщения от русскоязычных людей из разных стран, чтобы услышать, как звучит этот мир в момент перемен.\nЭто сайт с интерактивной картой.\nКаждое сообщение — это точка на карте. И голос за ней.\nГолос человека, который что-то переживает. Как и мы все.\nМы надеемся, что этот проект даст возможность:\n — высказаться о том, что чувствуешь\n — услышать других и не чувствовать себя одиноким\n\nНекоторые из наших вопросов:\n — Что изменилось в вашей жизни за последние годы?\n — Как вы себя чувствуете?\n — Что помогает вам держаться?\n\nГотовы начать?`, kbLearn);
 });
 
 bot.action('LETS_START', async (ctx) => {
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch (e) {
+    // Игнорируем ошибки answerCbQuery (query too old)
+  }
   await startStoryFlow(ctx);
 });
 
 bot.action('I_WANT_TO_TELL', async (ctx) => {
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch (e) {
+    // Игнорируем ошибки answerCbQuery (query too old)
+  }
   await startStoryFlow(ctx);
 });
 
 async function startStoryFlow(ctx) {
+  if (!ctx.session) {
+    ctx.session = {};
+  }
   ctx.session.state = 'AWAITING_NAME_CITY';
   ctx.session.collected = {
     userId: ctx.from.id,
@@ -80,6 +95,16 @@ bot.on('text', async (ctx) => {
   const text = ctx.message.text.trim();
 
   if (state === 'AWAITING_NAME_CITY') {
+    if (!ctx.session.collected) {
+      ctx.session.collected = {
+        userId: ctx.from.id,
+        username: ctx.from.username || null,
+        nameAndCity: null,
+        voices: [],
+        contact: null,
+        createdAt: new Date().toISOString(),
+      };
+    }
     ctx.session.collected.nameAndCity = text;
     ctx.session.state = 'AWAITING_VOICE';
     await ctx.reply('Спасибо. Теперь — ваш голос.\n\nМожно рассказать всё, что хочется.\nЕсли нужен ориентир — вот примеры вопросов:\n\n• Где вы были, когда всё началось?\n• Что изменилось в вашей жизни за последние 3 года?\n• Какие чувства ведущие в эти три года: вина, гнев, бессилие, сила, надежда, горе, безразличие?\n• Что помогает вам держаться? Что вы хотели бы сказать кому-то, кто переживает похожее?\n\nВы можете выбрать один вопрос. Или просто говорить, как идёт. Хронометраж не ограничен, но можно ориентироваться на полторы — две минуты.\n\nКогда будете готовы — запишите голосовое сообщение прямо здесь. Если запишите несколько — мы бережно склеим их в одну запись.');
@@ -87,6 +112,16 @@ bot.on('text', async (ctx) => {
   }
 
   if (state === 'AWAITING_CONTACT') {
+    if (!ctx.session.collected) {
+      ctx.session.collected = {
+        userId: ctx.from.id,
+        username: ctx.from.username || null,
+        nameAndCity: null,
+        voices: [],
+        contact: null,
+        createdAt: new Date().toISOString(),
+      };
+    }
     ctx.session.collected.contact = text;
     ctx.session.state = null;
     await sendToAdmin(ctx);
@@ -108,6 +143,16 @@ bot.on('voice', async (ctx) => {
   }
 
   const voice = ctx.message.voice;
+  if (!ctx.session.collected) {
+    ctx.session.collected = {
+      userId: ctx.from.id,
+      username: ctx.from.username || null,
+      nameAndCity: null,
+      voices: [],
+      contact: null,
+      createdAt: new Date().toISOString(),
+    };
+  }
   ctx.session.collected.voices.push({
     file_id: voice.file_id,
     file_unique_id: voice.file_unique_id,
@@ -119,26 +164,51 @@ bot.on('voice', async (ctx) => {
 });
 
 bot.action('LEAVE_CONTACT', async (ctx) => {
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch (e) {
+    // Игнорируем ошибки answerCbQuery (query too old)
+  }
+  if (!ctx.session) {
+    ctx.session = {};
+  }
   ctx.session.state = 'AWAITING_CONTACT';
   await ctx.reply('Вы можете отправить email или Telegram-никнейм.\nМы используем его только для отправки ссылки на ваш фрагмент карты.');
 });
 
 bot.action('NO_CONTACT', async (ctx) => {
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch (e) {
+    // Игнорируем ошибки answerCbQuery (query too old)
+  }
+  if (!ctx.session) {
+    ctx.session = {};
+  }
   ctx.session.state = null;
   await sendToAdmin(ctx);
   await ctx.reply('Спасибо. Ваш голос — часть живой карты.\nМы бережно обработаем и разместим его анонимно.\n\nСпасибо, что поделились.\nЕсли захотите — вы всегда можете вернуться и записать ещё.', kbFinal);
 });
 
 bot.action('RECORD_MORE', async (ctx) => {
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch (e) {
+    // Игнорируем ошибки answerCbQuery (query too old)
+  }
+  if (!ctx.session) {
+    ctx.session = {};
+  }
   ctx.session.state = 'AWAITING_VOICE';
   await ctx.reply('Хорошо — запишите ещё одно голосовое сообщение прямо здесь. Мы склеим несколько записей в одну.');
 });
 
 bot.action('FINISH', async (ctx) => {
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch (e) {
+    // Игнорируем ошибки answerCbQuery (query too old)
+  }
   ctx.session = {};
   await ctx.reply('Спасибо! Если захотите — вы всегда можете вернуться и записать ещё. Мы рядом.');
 });
@@ -160,13 +230,20 @@ async function sendToAdmin(ctx) {
     if (data.voices.length > 0) {
       // отправляем первое голосовое вместе с текстом
       const [first, ...rest] = data.voices;
-      await ctx.telegram.sendVoice(ADMIN_CHAT_ID, first.file_id, { caption: message });
+      await ctx.telegram.sendVoice(ADMIN_CHAT_ID, first.file_id, { 
+        caption: message,
+        message_thread_id: 110
+      });
       // остальные голосовые без текста
       for (const v of rest) {
-        await ctx.telegram.sendVoice(ADMIN_CHAT_ID, v.file_id);
+        await ctx.telegram.sendVoice(ADMIN_CHAT_ID, v.file_id, {
+          message_thread_id: 110
+        });
       }
     } else {
-      await ctx.telegram.sendMessage(ADMIN_CHAT_ID, message);
+      await ctx.telegram.sendMessage(ADMIN_CHAT_ID, message, {
+        message_thread_id: 110
+      });
     }
   } catch (e) {
     console.error('Error sending to admin chat:', e);
