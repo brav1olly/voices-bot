@@ -17,21 +17,14 @@ if (!ADMIN_CHAT_ID) {
   process.exit(1);
 }
 
-// Валидация chat_id
-function isValidChatId(chatId) {
-  if (!chatId) return false;
-  const id = chatId.toString();
-  // Проверяем формат: должен начинаться с -100 для супергрупп или быть числом для личных чатов
-  return /^-100\d+$/.test(id) || /^\d+$/.test(id);
-}
-
-if (!isValidChatId(ADMIN_CHAT_ID)) {
-  console.error('Invalid ADMIN_CHAT_ID format. Should be a valid Telegram chat ID.');
-  process.exit(1);
-}
-
 const bot = new Telegraf(BOT_TOKEN);
 bot.use(session());
+
+// Обработчик ошибок
+bot.catch((err, ctx) => {
+  console.error('❌ Ошибка в боте:', err.message);
+  // Не падаем при ошибках, продолжаем работу
+});
 
 // Keyboards / Buttons
 const kbStart = Markup.inlineKeyboard([
@@ -240,13 +233,14 @@ async function sendToAdmin(ctx) {
   message += `Дата: ${formattedDate}`;
 
   try {
-    // Сначала пробуем отправить в тред
     if (data.voices.length > 0) {
+      // отправляем первое голосовое вместе с текстом
       const [first, ...rest] = data.voices;
       await ctx.telegram.sendVoice(ADMIN_CHAT_ID, first.file_id, { 
         caption: message,
         message_thread_id: 110
       });
+      // остальные голосовые без текста
       for (const v of rest) {
         await ctx.telegram.sendVoice(ADMIN_CHAT_ID, v.file_id, {
           message_thread_id: 110
@@ -258,65 +252,11 @@ async function sendToAdmin(ctx) {
       });
     }
   } catch (e) {
-    console.error('Error sending to admin chat with thread:', e.message);
-    
-    // Fallback: пробуем отправить без thread_id
-    try {
-      if (data.voices.length > 0) {
-        const [first, ...rest] = data.voices;
-        await ctx.telegram.sendVoice(ADMIN_CHAT_ID, first.file_id, { 
-          caption: message
-        });
-        for (const v of rest) {
-          await ctx.telegram.sendVoice(ADMIN_CHAT_ID, v.file_id);
-        }
-      } else {
-        await ctx.telegram.sendMessage(ADMIN_CHAT_ID, message);
-      }
-      console.log('Successfully sent to admin chat without thread');
-    } catch (fallbackError) {
-      console.error('Error sending to admin chat (fallback failed):', fallbackError.message);
-      
-      // Последний fallback: отправляем в личные сообщения пользователю
-      try {
-        await ctx.reply('⚠️ Произошла ошибка при отправке вашей истории администраторам. Попробуйте позже или обратитесь в поддержку.');
-        console.error('Admin chat completely unavailable. Chat ID:', ADMIN_CHAT_ID);
-      } catch (finalError) {
-        console.error('Complete failure to send any message:', finalError.message);
-      }
-    }
+    console.error('Error sending to admin chat:', e);
   }
 }
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
 
-// Проверка доступности админского чата при запуске
-async function checkAdminChat() {
-  try {
-    const chat = await bot.telegram.getChat(ADMIN_CHAT_ID);
-    console.log(`✅ Admin chat доступен: ${chat.title || chat.first_name || 'Unknown'}`);
-    
-    // Проверяем, есть ли у бота права на отправку сообщений
-    const botMember = await bot.telegram.getChatMember(ADMIN_CHAT_ID, bot.botInfo.id);
-    if (botMember.status === 'left' || botMember.status === 'kicked') {
-      console.error('❌ Бот не является участником админского чата');
-      return false;
-    }
-    
-    console.log(`✅ Бот имеет статус: ${botMember.status}`);
-    return true;
-  } catch (error) {
-    console.error('❌ Ошибка при проверке админского чата:', error.message);
-    console.error('Проверьте:');
-    console.error('1. Правильность ADMIN_CHAT_ID в .env файле');
-    console.error('2. Добавлен ли бот в админский чат');
-    console.error('3. Есть ли у бота права на отправку сообщений');
-    return false;
-  }
-}
-
-bot.launch().then(async () => {
-  console.log('Bot started');
-  await checkAdminChat();
-});
+bot.launch().then(() => console.log('Bot started'));
